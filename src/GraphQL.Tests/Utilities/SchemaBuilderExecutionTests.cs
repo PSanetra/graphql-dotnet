@@ -1,5 +1,6 @@
 using GraphQL.Execution;
 using GraphQL.Types;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace GraphQL.Tests.Utilities;
 
@@ -291,6 +292,67 @@ public class SchemaBuilderExecutionTests : SchemaBuilderTestBase
             _.Variables = variables;
             _.ExpectedResult = expected;
         });
+    }
+
+    [Fact]
+    public void can_enable_CaseInsensitiveEnumValues()
+    {
+        const string defs = """
+                enum PetKind {
+                  CAT
+                  DOG
+                }
+
+                interface Pet {
+                  name: String!
+                }
+
+                type Dog implements Pet {
+                  name: String!
+                  barks: Boolean!
+                }
+
+                type Cat implements Pet {
+                  name: String!
+                  meows: Boolean!
+                }
+
+                type Query {
+                  pet(type: PetKind = DOG): Pet
+                }
+                """;
+
+        const string query = "query GetCat($type: PetKind!) { pet(type: $type) { name } }";
+        const string variables = """{ "type": "cAt" }""";
+        const string expected = """{ "pet": { "name" : "Biscuit" } }""";
+
+        var serviceCollection = new ServiceCollection()
+            .AddScoped<PetQueryType>()
+            .AddTransient<EnumerationGraphType, CaseInsensitiveEnumerationGraphType>()
+            .AddGraphQL(_ => { })
+            .AddSingleton<ISchema>(services =>
+            {
+                Builder.ServiceProvider = services;
+                Builder.Types.For("Dog").IsTypeOf<Dog>();
+                Builder.Types.For("Cat").IsTypeOf<Cat>();
+                Builder.Types.Include<PetQueryType>();
+                return Builder.Build(defs);
+            });
+
+        var sp = serviceCollection.BuildServiceProvider(new ServiceProviderOptions()
+        {
+            ValidateOnBuild = true
+        });
+
+        AssertQuery(
+            _ =>
+            {
+                _.Query = query;
+                _.Variables = variables;
+                _.ExpectedResult = expected;
+            },
+            sp.GetRequiredService<ISchema>()
+        );
     }
 
     [Fact]

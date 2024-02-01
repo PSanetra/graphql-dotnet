@@ -57,6 +57,14 @@ namespace GraphQL.DI
             Services.TryRegister(typeof(ConnectionType<,>), typeof(ConnectionType<,>), ServiceLifetime.Transient);
             Services.TryRegister<PageInfoType>(ServiceLifetime.Transient);
 
+            // configure non-generic graph types
+            Services.TryRegister(typeof(EnumerationGraphType), typeof(EnumerationGraphType), ServiceLifetime.Transient);
+            Services.TryRegister(typeof(InputObjectGraphType), typeof(InputObjectGraphType), ServiceLifetime.Transient);
+            Services.TryRegister(typeof(ObjectGraphType), typeof(ObjectGraphType), ServiceLifetime.Transient);
+            Services.TryRegister(typeof(InterfaceGraphType), typeof(InterfaceGraphType), ServiceLifetime.Transient);
+            Services.TryRegister(typeof(UnionGraphType), typeof(UnionGraphType), ServiceLifetime.Transient);
+            Services.TryRegister(typeof(FieldType), typeof(FieldType), ServiceLifetime.Transient);
+
             // configure generic graph types
             Services.TryRegister(typeof(EnumerationGraphType<>), typeof(EnumerationGraphType<>), ServiceLifetime.Transient);
             Services.TryRegister(typeof(InputObjectGraphType<>), typeof(InputObjectGraphType<>), ServiceLifetime.Transient);
