@@ -1,5 +1,6 @@
 using GraphQL.Execution;
 using GraphQL.Types;
+using GraphQLParser;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GraphQL.Tests.Utilities;
@@ -295,7 +296,7 @@ public class SchemaBuilderExecutionTests : SchemaBuilderTestBase
     }
 
     [Fact]
-    public void can_enable_CaseInsensitiveEnumValues()
+    public void can_use_custom_graph_types_via_IGraphTypeFactory()
     {
         const string defs = """
                 enum PetKind {
@@ -328,16 +329,17 @@ public class SchemaBuilderExecutionTests : SchemaBuilderTestBase
 
         var serviceCollection = new ServiceCollection()
             .AddScoped<PetQueryType>()
-            .AddTransient<EnumerationGraphType, CaseInsensitiveEnumerationGraphType>()
-            .AddGraphQL(_ => { })
-            .AddSingleton<ISchema>(services =>
-            {
-                Builder.ServiceProvider = services;
-                Builder.Types.For("Dog").IsTypeOf<Dog>();
-                Builder.Types.For("Cat").IsTypeOf<Cat>();
-                Builder.Types.Include<PetQueryType>();
-                return Builder.Build(defs);
-            });
+            .AddSingleton<IGraphTypeFactory<EnumerationGraphType>, GenericGraphTypeFactory<CaseInsensitiveEnumerationGraphType>>()
+            .AddGraphQL(b => b
+                .AddSchema(services =>
+                {
+                    Builder.ServiceProvider = services;
+                    Builder.Types.For("Dog").IsTypeOf<Dog>();
+                    Builder.Types.For("Cat").IsTypeOf<Cat>();
+                    Builder.Types.Include<PetQueryType>();
+                    return Builder.Build(defs);
+                })
+            );
 
         var sp = serviceCollection.BuildServiceProvider(new ServiceProviderOptions()
         {
@@ -927,4 +929,39 @@ internal class MyUserContext : Dictionary<string, object?>
 }
 internal class ChildMyUserContext : MyUserContext
 {
+}
+
+internal class CaseInsensitiveEnumerationGraphType : EnumerationGraphType
+{
+    protected override EnumValuesBase CreateValues() => new CaseInsensitiveEnumValues();
+}
+
+internal class CaseInsensitiveEnumValues : EnumValues
+{
+    private readonly IDictionary<string, EnumValueDefinition> _aliasValues = new Dictionary<string, EnumValueDefinition>();
+
+    /// <inheritdoc />
+    public override void Add(EnumValueDefinition value)
+    {
+        base.Add(value);
+        _aliasValues[value.Name.ToUpperInvariant()] = value;
+        _aliasValues[value.Name.ToConstantCase()] = value;
+    }
+
+    /// <inheritdoc />
+    public override EnumValueDefinition? FindByName(ROM name)
+    {
+        var value = base.FindByName(name);
+
+        if (value != null)
+        {
+            return value;
+        }
+
+        var strName = name.ToString();
+
+        _aliasValues.TryGetValue(strName.ToUpperInvariant(), out value);
+
+        return value;
+    }
 }
