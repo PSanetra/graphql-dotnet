@@ -329,7 +329,7 @@ public class SchemaBuilderExecutionTests : SchemaBuilderTestBase
 
         var serviceCollection = new ServiceCollection()
             .AddScoped<PetQueryType>()
-            .AddSingleton<IGraphTypeFactory<EnumerationGraphType>, GenericGraphTypeFactory<CaseInsensitiveEnumerationGraphType>>()
+            .AddSingleton<IGraphTypeFactory<EnumerationGraphType>, DefaultGraphTypeFactory<CaseInsensitiveEnumerationGraphType>>()
             .AddGraphQL(b => b
                 .AddSchema(services =>
                 {
@@ -961,6 +961,13 @@ internal class CaseInsensitiveEnumValues : EnumValues
         var strName = name.ToString();
 
         _aliasValues.TryGetValue(strName.ToUpperInvariant(), out value);
+
+        if (value != null)
+        {
+            return value;
+        }
+
+        _aliasValues.TryGetValue(strName.ToConstantCase(), out value);
 
         return value;
     }
